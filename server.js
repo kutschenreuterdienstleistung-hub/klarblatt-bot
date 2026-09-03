@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+h#!/usr/bin/env node
 // ============================================================
 //  Klarblatt — Vollautomatisierter E-Mail-Service
 //  Bestellformular → Stripe → Claude API → E-Mail-Zustellung
@@ -39,7 +39,7 @@ const COLORS = {
 const PACKAGES = {
   auffrischen: {
     name: 'Auffrischen', desc: 'Bestehendes Deck aufpolieren — bis 15 Folien',
-    price: 39000, priceLabel: '390 €', slides: 15, type: 'pptx',
+    price: 100, priceLabel: '1 €', slides: 15, type: 'pptx',
   },
   neuaufbau: {
     name: 'Neuaufbau', desc: 'Komplett neues Deck — bis 20 Folien',
