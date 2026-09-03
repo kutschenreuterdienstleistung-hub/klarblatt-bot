@@ -1,4 +1,4 @@
-h#!/usr/bin/env node
+#!/usr/bin/env node
 // ============================================================
 //  Klarblatt — Vollautomatisierter E-Mail-Service
 //  Bestellformular → Stripe → Claude API → E-Mail-Zustellung
