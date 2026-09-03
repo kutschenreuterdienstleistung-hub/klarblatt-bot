@@ -39,7 +39,7 @@ const COLORS = {
 const PACKAGES = {
   auffrischen: {
     name: 'Auffrischen', desc: 'Bestehendes Deck aufpolieren — bis 15 Folien',
-    price: 100, priceLabel: '1 €', slides: 15, type: 'pptx',
+    price: 39000, priceLabel: '390 €', slides: 15, type: 'pptx',
   },
   neuaufbau: {
     name: 'Neuaufbau', desc: 'Komplett neues Deck — bis 20 Folien',
@@ -140,7 +140,7 @@ app.get('/', (req, res) => {
       <textarea name="briefing" id="briefing" placeholder="Beschreibe Thema, Zielgruppe, Kernaussagen, Stil-Wünsche…" required></textarea>
     </div>
 
-    <div class="price-display" id="totalPrice">1,00 €</div>
+    <div class="price-display" id="totalPrice">390,00 €</div>
     <button type="submit" class="btn">💳 Jetzt bezahlen & bestellen</button>
   </form>
 
@@ -150,7 +150,7 @@ app.get('/', (req, res) => {
 </div>
 
 <script>
-const prices = {auffrischen:100,neuaufbau:79000,bericht_deck:149000,retainer:60000};
+const prices = {auffrischen:39000,neuaufbau:79000,bericht_deck:149000,retainer:60000};
 function calc(){
   const pkg = document.getElementById('pkgSelect').value;
   if(!pkg) return;
