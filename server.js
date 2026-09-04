@@ -55,8 +55,38 @@ const PACKAGES = {
   },
 };
 
-// ── Order Store (in-memory; use DB in production) ───────────
+// ── Order Store (file-backed for Render free-plan restarts) ─
+const ORDERS_FILE = path.join('/tmp', 'klarblatt-orders.json');
 const orders = new Map();
+
+function loadOrders() {
+  try {
+    if (fs.existsSync(ORDERS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(ORDERS_FILE, 'utf8'));
+      for (const [k, v] of Object.entries(data)) orders.set(k, v);
+      console.log(`📂 ${orders.size} Bestellungen aus Datei geladen`);
+    }
+  } catch (e) { console.error('Order-Datei Ladefehler:', e.message); }
+}
+
+function saveOrders() {
+  try {
+    const obj = Object.fromEntries(orders);
+    fs.writeFileSync(ORDERS_FILE, JSON.stringify(obj));
+  } catch (e) { console.error('Order-Datei Speicherfehler:', e.message); }
+}
+
+loadOrders();
+
+// ── Safe JSON parse from Claude ─────────────────────────────
+function safeParseJSON(text) {
+  // Strip markdown code fences if present
+  let cleaned = text.trim();
+  if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, '').replace(/\n?```\s*$/, '');
+  }
+  return JSON.parse(cleaned);
+}
 
 // ── Bestellformular (HTML) ──────────────────────────────────
 app.get('/', (req, res) => {
@@ -199,11 +229,19 @@ app.post('/checkout', async (req, res) => {
       mode: 'payment',
       success_url: `${BASE_URL}/danke`,
       cancel_url: BASE_URL,
-      metadata: { package: pkgKey, addons: JSON.stringify(addons) },
+      metadata: {
+        package: pkgKey,
+        addons: JSON.stringify(addons),
+        // Store briefing in Stripe metadata as fallback
+        briefing: briefing.substring(0, 490),
+        email,
+        name: name || '',
+      },
     });
 
-    // Store order data
-    orders.set(session.id, { email, name, pkgKey, addons, briefing });
+    // Store order data (in memory + file)
+    orders.set(session.id, { email, name, pkgKey, addons, briefing, created: Date.now() });
+    saveOrders();
     res.redirect(303, session.url);
   } catch (err) {
     console.error('Stripe error:', err.message);
@@ -236,23 +274,43 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
 
   if (event.type === 'checkout.session.completed') {
     const session = event.data.object;
-    const order = orders.get(session.id);
+    let order = orders.get(session.id);
+
+    // Fallback: reconstruct order from Stripe metadata if server restarted
+    if (!order && session.metadata) {
+      console.log('⚠️ Bestellung nicht im Speicher — rekonstruiere aus Stripe-Metadaten');
+      order = {
+        email: session.metadata.email || session.customer_email,
+        name: session.metadata.name || '',
+        pkgKey: session.metadata.package,
+        addons: JSON.parse(session.metadata.addons || '[]'),
+        briefing: session.metadata.briefing || 'Bitte Briefing per E-Mail nachliefern.',
+      };
+    }
 
     if (order) {
       console.log(`✅ Zahlung von ${order.email} — Paket: ${order.pkgKey}`);
+      // Respond to Stripe immediately, then process
+      res.json({ received: true });
       try {
         await produceAndDeliver(order);
         console.log(`📧 Deliverable an ${order.email} verschickt`);
       } catch (err) {
         console.error('Production error:', err);
         // Notify business owner
-        await resend.emails.send({
-          from: FROM_EMAIL, to: NOTIFY_EMAIL,
-          subject: `⚠️ Klarblatt Fehler — Bestellung von ${order.email}`,
-          text: `Fehler bei Produktion:\n${err.message}\n\nBriefing:\n${order.briefing}`,
-        });
+        try {
+          await resend.emails.send({
+            from: FROM_EMAIL, to: NOTIFY_EMAIL,
+            subject: `⚠️ Klarblatt Fehler — Bestellung von ${order.email}`,
+            text: `Fehler bei Produktion:\n${err.message}\n\nBriefing:\n${order.briefing}\n\nPaket: ${order.pkgKey}`,
+          });
+        } catch (mailErr) {
+          console.error('Fehlerbenachrichtigung fehlgeschlagen:', mailErr.message);
+        }
       }
       orders.delete(session.id);
+      saveOrders();
+      return; // Already responded
     }
   }
   res.json({ received: true });
@@ -261,6 +319,7 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
 // ── Produce & Deliver ───────────────────────────────────────
 async function produceAndDeliver(order) {
   const pkg = PACKAGES[order.pkgKey];
+  if (!pkg) throw new Error(`Unbekanntes Paket: ${order.pkgKey}`);
   const attachments = [];
 
   // Generate PPTX
@@ -306,8 +365,21 @@ async function produceAndDeliver(order) {
     attachments: emailAttachments,
   });
 
+  // Notify Michael about new order
+  try {
+    await resend.emails.send({
+      from: FROM_EMAIL, to: NOTIFY_EMAIL,
+      subject: `🎉 Neue Klarblatt-Bestellung: ${pkg.name} von ${order.name || order.email}`,
+      text: `Neue Bestellung eingegangen!\n\nKunde: ${order.name || '(kein Name)'}\nE-Mail: ${order.email}\nPaket: ${pkg.name} (${pkg.priceLabel})\nAdd-Ons: ${order.addons.length ? order.addons.join(', ') : 'keine'}\n\nBriefing:\n${order.briefing}\n\nDeliverable wurde automatisch erstellt und zugestellt.`,
+    });
+  } catch (e) {
+    console.error('Benachrichtigung an Michael fehlgeschlagen:', e.message);
+  }
+
   // Cleanup temp files
-  for (const a of attachments) fs.unlinkSync(a.path);
+  for (const a of attachments) {
+    try { fs.unlinkSync(a.path); } catch (e) { /* ignore */ }
+  }
 }
 
 // ── Claude API: Slides ──────────────────────────────────────
@@ -331,7 +403,14 @@ Antworte als JSON-Array. Jede Folie hat:
 Antworte NUR mit dem JSON-Array, kein Markdown.`
     }],
   });
-  return JSON.parse(response.content[0].text.trim());
+
+  try {
+    return safeParseJSON(response.content[0].text);
+  } catch (err) {
+    console.error('Claude Slide-JSON Parse-Fehler:', err.message);
+    console.error('Rohtext:', response.content[0].text.substring(0, 500));
+    throw new Error('Claude-Antwort konnte nicht als JSON gelesen werden. Bitte erneut versuchen.');
+  }
 }
 
 // ── Claude API: Report ──────────────────────────────────────
@@ -353,7 +432,14 @@ Antworte als JSON:
 5-8 Abschnitte. NUR JSON, kein Markdown.`
     }],
   });
-  return JSON.parse(response.content[0].text.trim());
+
+  try {
+    return safeParseJSON(response.content[0].text);
+  } catch (err) {
+    console.error('Claude Report-JSON Parse-Fehler:', err.message);
+    console.error('Rohtext:', response.content[0].text.substring(0, 500));
+    throw new Error('Claude-Antwort konnte nicht als JSON gelesen werden. Bitte erneut versuchen.');
+  }
 }
 
 // ── PPTX Builder ────────────────────────────────────────────
@@ -417,7 +503,12 @@ async function buildDocx(report) {
 }
 
 // ── Health ──────────────────────────────────────────────────
-app.get('/health', (req, res) => res.json({ status: 'ok', service: 'klarblatt' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', service: 'klarblatt', orders: orders.size }));
+
+// ── Robots.txt (allow SEO crawling) ─────────────────────────
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send('User-agent: *\nAllow: /\n');
+});
 
 // ── Start ───────────────────────────────────────────────────
 app.listen(PORT, () => {
