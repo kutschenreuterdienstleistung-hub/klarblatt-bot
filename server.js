@@ -23,7 +23,6 @@ const FROM_EMAIL = process.env.FROM_EMAIL || 'Klarblatt <onboarding@resend.dev>'
 const NOTIFY_EMAIL = process.env.NOTIFY_EMAIL || 'kutschenreuter.dienstleistung@gmail.com';
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
-
 const stripe    = new Stripe(STRIPE_KEY);
 const anthropic = new Anthropic({ apiKey: CLAUDE_KEY });
 const resend    = new Resend(RESEND_KEY);
@@ -52,6 +51,13 @@ const PACKAGES = {
   retainer: {
     name: 'Retainer', desc: '4 Auffrischungen pro Monat',
     price: 60000, priceLabel: '600 €/Mo', slides: 15, type: 'pptx',
+  },  kostenaufstellung: {
+    name: 'KI-Kostenaufstellung', desc: 'Detaillierte Baukostenanalyse mit KI-Auswertung',
+    price: 24900, priceLabel: '249 €', slides: 0, type: 'docx',
+  },
+  bauabrechnung: {
+    name: 'B2B-Bauabrechnung', desc: 'Monatliche Bauabrechnungsbetreuung (Abo)',
+    price: 45000, priceLabel: '450 €/Mo', slides: 0, type: 'docx',
   },
 };
 
@@ -75,7 +81,6 @@ function saveOrders() {
     fs.writeFileSync(ORDERS_FILE, JSON.stringify(obj));
   } catch (e) { console.error('Order-Datei Speicherfehler:', e.message); }
 }
-
 loadOrders();
 
 // ── Safe JSON parse from Claude ─────────────────────────────
@@ -103,8 +108,7 @@ app.get('/', (req, res) => {
   .header h1 { font-size:2rem; font-weight:700; }
   .header p { color:var(--mint); margin-top:.5rem; }
   .container { max-width:640px; margin:2rem auto; padding:0 1rem; }
-  .card { background:#fff; border-radius:12px; padding:2rem; box-shadow:0 2px 12px rgba(0,0,0,.08); margin-bottom:1.5rem; }
-  .card h2 { color:var(--dark); margin-bottom:1rem; font-size:1.3rem; }
+  .card { background:#fff; border-radius:12px; padding:2rem; box-shadow:0 2px 12px rgba(0,0,0,.08); margin-bottom:1.5rem; }  .card h2 { color:var(--dark); margin-bottom:1rem; font-size:1.3rem; }
   label { display:block; font-weight:600; margin:1rem 0 .3rem; }
   select, input, textarea { width:100%; padding:.75rem; border:2px solid #ddd; border-radius:8px; font-size:1rem; transition:border .2s; }
   select:focus, input:focus, textarea:focus { border-color:var(--teal); outline:none; }
@@ -133,8 +137,7 @@ app.get('/', (req, res) => {
 <div class="container">
   <div class="steps">
     <div class="step"><div class="step-num">1</div><div class="step-label">Bestellen</div></div>
-    <div class="step"><div class="step-num">2</div><div class="step-label">Bezahlen</div></div>
-    <div class="step"><div class="step-num">3</div><div class="step-label">Erhalten</div></div>
+    <div class="step"><div class="step-num">2</div><div class="step-label">Bezahlen</div></div>    <div class="step"><div class="step-num">3</div><div class="step-label">Erhalten</div></div>
   </div>
 
   <form id="orderForm" action="/checkout" method="POST">
@@ -146,6 +149,8 @@ app.get('/', (req, res) => {
         <option value="neuaufbau">Neuaufbau — 790 € (bis 20 Folien)</option>
         <option value="bericht_deck">Bericht & Deck — 1.490 € (bis 30 Folien)</option>
         <option value="retainer">Retainer — 600 €/Mo (4× Auffrischung)</option>
+        <option value="kostenaufstellung">KI-Kostenaufstellung — 249 €</option>
+        <option value="bauabrechnung">B2B-Bauabrechnung — 450 €/Mo</option>
       </select>
     </div>
 
@@ -162,7 +167,6 @@ app.get('/', (req, res) => {
       <h2>3. Dein Briefing</h2>
       <label for="email">E-Mail-Adresse *</label>
       <input type="email" name="email" id="email" placeholder="deine@email.de" required>
-
       <label for="name">Name</label>
       <input type="text" name="name" id="name" placeholder="Dein Name">
 
@@ -180,7 +184,7 @@ app.get('/', (req, res) => {
 </div>
 
 <script>
-const prices = {auffrischen:39000,neuaufbau:79000,bericht_deck:149000,retainer:60000};
+const prices = {auffrischen:39000,neuaufbau:79000,bericht_deck:149000,retainer:60000,kostenaufstellung:24900,bauabrechnung:45000};
 function calc(){
   const pkg = document.getElementById('pkgSelect').value;
   if(!pkg) return;
@@ -191,8 +195,7 @@ function calc(){
   document.getElementById('totalPrice').textContent = (total/100).toFixed(2).replace('.',',')+' €';
 }
 document.getElementById('pkgSelect').addEventListener('change',calc);
-document.querySelectorAll('.addons input').forEach(i=>i.addEventListener('change',calc));
-</script>
+document.querySelectorAll('.addons input').forEach(i=>i.addEventListener('change',calc));</script>
 </body>
 </html>`);
 });
@@ -221,8 +224,7 @@ app.post('/checkout', async (req, res) => {
           product_data: {
             name: `Klarblatt ${pkg.name}`,
             description: addons.length ? `Add-Ons: ${addons.join(', ')}` : pkg.desc,
-          },
-          unit_amount: totalCents,
+          },          unit_amount: totalCents,
         },
         quantity: 1,
       }],
@@ -251,8 +253,7 @@ app.post('/checkout', async (req, res) => {
 
 // ── Danke-Seite ─────────────────────────────────────────────
 app.get('/danke', (req, res) => {
-  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Danke — Klarblatt</title>
+  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Danke — Klarblatt</title>
 <style>body{font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#F0F7F4;margin:0}
 .box{text-align:center;background:#fff;padding:3rem;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08);max-width:480px}
 h1{color:#06393E;font-size:2rem}p{color:#555;margin-top:1rem;line-height:1.6}
@@ -281,8 +282,7 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
       console.log('⚠️ Bestellung nicht im Speicher — rekonstruiere aus Stripe-Metadaten');
       order = {
         email: session.metadata.email || session.customer_email,
-        name: session.metadata.name || '',
-        pkgKey: session.metadata.package,
+        name: session.metadata.name || '',        pkgKey: session.metadata.package,
         addons: JSON.parse(session.metadata.addons || '[]'),
         briefing: session.metadata.briefing || 'Bitte Briefing per E-Mail nachliefern.',
       };
@@ -310,8 +310,7 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
       }
       orders.delete(session.id);
       saveOrders();
-      return; // Already responded
-    }
+      return; // Already responded    }
   }
   res.json({ received: true });
 });
@@ -329,13 +328,19 @@ async function produceAndDeliver(order) {
     attachments.push({ filename: 'Klarblatt-Praesentation.pptx', path: filePath });
   }
 
-  // Generate Report
-  if (pkg.type === 'both') {
-    const report = await generateReportContent(order.briefing);
+  // Generate Report (combo or standalone docx)
+  if (pkg.type === 'both' || pkg.type === 'docx') {
+    const isKosten = order.pkgKey === 'kostenaufstellung';
+    const isBau = order.pkgKey === 'bauabrechnung';
+    const report = isKosten ? await generateKostenaufstellung(order.briefing)
+                 : isBau   ? await generateBauabrechnung(order.briefing)
+                 :           await generateReportContent(order.briefing);
     const filePath = await buildDocx(report);
-    attachments.push({ filename: 'Klarblatt-Report.docx', path: filePath });
+    const fname = isKosten ? 'Klarblatt-Kostenaufstellung.docx'
+                : isBau    ? 'Klarblatt-Bauabrechnung.docx'
+                :            'Klarblatt-Report.docx';
+    attachments.push({ filename: fname, path: filePath });
   }
-
   // Send email via Resend
   const emailAttachments = attachments.map(a => ({
     filename: a.filename,
@@ -364,7 +369,6 @@ async function produceAndDeliver(order) {
     `,
     attachments: emailAttachments,
   });
-
   // Notify Michael about new order
   try {
     await resend.emails.send({
@@ -395,8 +399,7 @@ Erstelle den Inhalt für eine Präsentation mit maximal ${maxSlides} Folien.
 Kundenbriefing:
 ${briefing}
 
-Antworte als JSON-Array. Jede Folie hat:
-- "title": Folientitel
+Antworte als JSON-Array. Jede Folie hat:- "title": Folientitel
 - "bullets": Array mit 3-5 Stichpunkten
 - "notes": Sprechernotizen (1-2 Sätze)
 
@@ -426,8 +429,7 @@ Erstelle einen ausführlichen Report.
 Kundenbriefing:
 ${briefing}
 
-Antworte als JSON:
-{"title":"Report-Titel","sections":[{"heading":"Titel","body":"Fließtext..."}]}
+Antworte als JSON:{"title":"Report-Titel","sections":[{"heading":"Titel","body":"Fließtext..."}]}
 
 5-8 Abschnitte. NUR JSON, kein Markdown.`
     }],
@@ -439,6 +441,62 @@ Antworte als JSON:
     console.error('Claude Report-JSON Parse-Fehler:', err.message);
     console.error('Rohtext:', response.content[0].text.substring(0, 500));
     throw new Error('Claude-Antwort konnte nicht als JSON gelesen werden. Bitte erneut versuchen.');
+  }
+}
+
+// ── Claude API: Kostenaufstellung ──────────────────────────
+async function generateKostenaufstellung(briefing) {
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 6000,
+    messages: [{
+      role: 'user',
+      content: `Du bist ein erfahrener Baukostenanalyst für "Klarblatt".
+Erstelle eine detaillierte KI-Kostenaufstellung basierend auf dem Kundenbriefing.
+
+Kundenbriefing:
+${briefing}
+
+Antworte als JSON:
+{"title":"Kostenaufstellung: [Projektname]","sections":[{"heading":"Abschnittstitel","body":"Detaillierter Fließtext mit Zahlen, Positionen, Einheitspreisen und Gesamtkosten"}]}
+Abschnitte: Projektübersicht, Kostenaufstellung nach Gewerken (mit konkreten Positionen und Einheitspreisen), Zusammenfassung & Gesamtkosten, Empfehlungen zur Kostenoptimierung.
+NUR JSON, kein Markdown.`
+    }],
+  });
+
+  try {
+    return safeParseJSON(response.content[0].text);
+  } catch (err) {
+    console.error('Claude Kostenaufstellung Parse-Fehler:', err.message);
+    throw new Error('Claude-Antwort konnte nicht als JSON gelesen werden.');
+  }
+}
+
+// ── Claude API: Bauabrechnung ─────────────────────────────
+async function generateBauabrechnung(briefing) {
+  const response = await anthropic.messages.create({
+    model: 'claude-sonnet-4-20250514',
+    max_tokens: 6000,
+    messages: [{
+      role: 'user',
+      content: `Du bist ein erfahrener Bausachverständiger für "Klarblatt".
+Erstelle eine professionelle Bauabrechnung/Abrechnungsprüfung basierend auf dem Kundenbriefing.
+
+Kundenbriefing:
+${briefing}
+
+Antworte als JSON:
+{"title":"Bauabrechnung: [Projektname]","sections":[{"heading":"Abschnittstitel","body":"Detaillierter Fließtext"}]}
+Abschnitte: Abrechnungszeitraum & Projektdaten, Leistungsverzeichnis mit Aufmaßen, Rechnungsprüfung (Soll/Ist-Vergleich), Feststellungen & Abweichungen, Freigabeempfehlung.
+NUR JSON, kein Markdown.`
+    }],
+  });
+
+  try {
+    return safeParseJSON(response.content[0].text);
+  } catch (err) {
+    console.error('Claude Bauabrechnung Parse-Fehler:', err.message);
+    throw new Error('Claude-Antwort konnte nicht als JSON gelesen werden.');
   }
 }
 
@@ -458,7 +516,6 @@ async function buildPptx(slides) {
     x: 0.8, y: 4.0, w: 11.7, h: 0.6,
     fontSize: 14, fontFace: 'Calibri', color: COLORS.MINT,
   });
-
   for (let i = 1; i < slides.length; i++) {
     const s = slides[i];
     const slide = pptx.addSlide();
@@ -488,8 +545,7 @@ async function buildPptx(slides) {
 async function buildDocx(report) {
   const children = [
     new Paragraph({ text: report.title, heading: HeadingLevel.TITLE, spacing: { after: 400 } }),
-    new Paragraph({ children: [new TextRun({ text: 'Erstellt von Klarblatt', italics: true, color: COLORS.TEAL, size: 24 })], spacing: { after: 600 } }),
-  ];
+    new Paragraph({ children: [new TextRun({ text: 'Erstellt von Klarblatt', italics: true, color: COLORS.TEAL, size: 24 })], spacing: { after: 600 } }),  ];
   for (const sec of report.sections) {
     children.push(new Paragraph({ text: sec.heading, heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 200 } }));
     for (const p of sec.body.split('\n').filter(x => x.trim())) {
