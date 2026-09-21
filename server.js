@@ -55,10 +55,6 @@ const PACKAGES = {
     name: 'KI-Kostenaufstellung', desc: 'Detaillierte Baukostenanalyse mit KI-Auswertung',
     price: 24900, priceLabel: '249 €', slides: 0, type: 'docx',
   },
-  bauabrechnung: {
-    name: 'B2B-Bauabrechnung', desc: 'Monatliche Bauabrechnungsbetreuung (Abo)',
-    price: 45000, priceLabel: '450 €/Mo', slides: 0, type: 'docx',
-  },
 };
 
 // ── Order Store (file-backed for Render free-plan restarts) ─
@@ -150,7 +146,6 @@ app.get('/', (req, res) => {
         <option value="bericht_deck">Bericht & Deck — 1.490 € (bis 30 Folien)</option>
         <option value="retainer">Retainer — 600 €/Mo (4× Auffrischung)</option>
         <option value="kostenaufstellung">KI-Kostenaufstellung — 249 €</option>
-        <option value="bauabrechnung">B2B-Bauabrechnung — 450 €/Mo</option>
       </select>
     </div>
 
@@ -184,7 +179,7 @@ app.get('/', (req, res) => {
 </div>
 
 <script>
-const prices = {auffrischen:39000,neuaufbau:79000,bericht_deck:149000,retainer:60000,kostenaufstellung:24900,bauabrechnung:45000};
+const prices = {auffrischen:39000,neuaufbau:79000,bericht_deck:149000,retainer:60000,kostenaufstellung:24900};
 function calc(){
   const pkg = document.getElementById('pkgSelect').value;
   if(!pkg) return;
@@ -332,13 +327,10 @@ async function produceAndDeliver(order) {
   // Generate Report (combo or standalone docx)
   if (pkg.type === 'both' || pkg.type === 'docx') {
     const isKosten = order.pkgKey === 'kostenaufstellung';
-    const isBau = order.pkgKey === 'bauabrechnung';
     const report = isKosten ? await generateKostenaufstellung(order.briefing)
-                 : isBau   ? await generateBauabrechnung(order.briefing)
                  :           await generateReportContent(order.briefing);
     const filePath = await buildDocx(report);
     const fname = isKosten ? 'Klarblatt-Kostenaufstellung.docx'
-                : isBau    ? 'Klarblatt-Bauabrechnung.docx'
                 :            'Klarblatt-Report.docx';
     attachments.push({ filename: fname, path: filePath });
   }
@@ -469,34 +461,6 @@ NUR JSON, kein Markdown.`
     return safeParseJSON(response.content[0].text);
   } catch (err) {
     console.error('Claude Kostenaufstellung Parse-Fehler:', err.message);
-    throw new Error('Claude-Antwort konnte nicht als JSON gelesen werden.');
-  }
-}
-
-// ── Claude API: Bauabrechnung ─────────────────────────────
-async function generateBauabrechnung(briefing) {
-  const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 6000,
-    messages: [{
-      role: 'user',
-      content: `Du bist ein erfahrener Bausachverständiger für "Klarblatt".
-Erstelle eine professionelle Bauabrechnung/Abrechnungsprüfung basierend auf dem Kundenbriefing.
-
-Kundenbriefing:
-${briefing}
-
-Antworte als JSON:
-{"title":"Bauabrechnung: [Projektname]","sections":[{"heading":"Abschnittstitel","body":"Detaillierter Fließtext"}]}
-Abschnitte: Abrechnungszeitraum & Projektdaten, Leistungsverzeichnis mit Aufmaßen, Rechnungsprüfung (Soll/Ist-Vergleich), Feststellungen & Abweichungen, Freigabeempfehlung.
-NUR JSON, kein Markdown.`
-    }],
-  });
-
-  try {
-    return safeParseJSON(response.content[0].text);
-  } catch (err) {
-    console.error('Claude Bauabrechnung Parse-Fehler:', err.message);
     throw new Error('Claude-Antwort konnte nicht als JSON gelesen werden.');
   }
 }
