@@ -310,7 +310,8 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
       }
       orders.delete(session.id);
       saveOrders();
-      return; // Already responded    }
+      return; // Already responded
+    }
   }
   res.json({ received: true });
 });
