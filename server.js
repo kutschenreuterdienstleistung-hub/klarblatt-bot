@@ -23,6 +23,7 @@ const FROM_EMAIL = process.env.FROM_EMAIL || 'Klarblatt <onboarding@resend.dev>'
 const NOTIFY_EMAIL = process.env.NOTIFY_EMAIL || 'kutschenreuter.dienstleistung@gmail.com';
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const CLAUDE_MODEL = process.env.CLAUDE_MODEL || 'claude-sonnet-5';
 const stripe    = new Stripe(STRIPE_KEY);
 const anthropic = new Anthropic({ apiKey: CLAUDE_KEY });
 const resend    = new Resend(RESEND_KEY);
@@ -382,7 +383,7 @@ async function produceAndDeliver(order) {
 // ── Claude API: Slides ──────────────────────────────────────
 async function generateSlideContent(briefing, maxSlides) {
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: CLAUDE_MODEL,
     max_tokens: 4000,
     messages: [{
       role: 'user',
@@ -412,7 +413,7 @@ Antworte NUR mit dem JSON-Array, kein Markdown.`
 // ── Claude API: Report ──────────────────────────────────────
 async function generateReportContent(briefing) {
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: CLAUDE_MODEL,
     max_tokens: 6000,
     messages: [{
       role: 'user',
@@ -440,7 +441,7 @@ Antworte als JSON:{"title":"Report-Titel","sections":[{"heading":"Titel","body":
 // ── Claude API: Kostenaufstellung ──────────────────────────
 async function generateKostenaufstellung(briefing) {
   const response = await anthropic.messages.create({
-    model: 'claude-sonnet-4-20250514',
+    model: CLAUDE_MODEL,
     max_tokens: 6000,
     messages: [{
       role: 'user',
