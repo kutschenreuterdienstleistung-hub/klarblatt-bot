@@ -80,6 +80,13 @@ function saveOrders() {
 }
 loadOrders();
 
+// ── Extract text block from Claude response (content[0] may be a thinking block) ─
+function getResponseText(response) {
+  const block = response.content.find(b => b.type === 'text');
+  if (!block) throw new Error('Keine Text-Antwort von Claude erhalten');
+  return block.text;
+}
+
 // ── Safe JSON parse from Claude ─────────────────────────────
 function safeParseJSON(text) {
   // Strip markdown code fences if present
@@ -202,6 +209,7 @@ app.post('/checkout', async (req, res) => {
   const { package: pkgKey, email, name, briefing, addon_express, addon_bilingual, addon_template } = req.body;
   const pkg = PACKAGES[pkgKey];
   if (!pkg || !email || !briefing) return res.status(400).send('Fehlende Daten');
+  if (briefing.length > 5000) return res.status(400).send('Briefing zu lang (max. 5000 Zeichen)');
 
   const addons = [];
   let totalCents = pkg.price;
@@ -320,7 +328,7 @@ async function produceAndDeliver(order) {
 
   // Generate PPTX
   if (pkg.type === 'pptx' || pkg.type === 'both') {
-    const slides = await generateSlideContent(order.briefing, pkg.slides);
+    const slides = (await generateSlideContent(order.briefing, pkg.slides)).slice(0, pkg.slides);
     const filePath = await buildPptx(slides);
     attachments.push({ filename: 'Klarblatt-Praesentation.pptx', path: filePath });
   }
@@ -388,24 +396,28 @@ async function generateSlideContent(briefing, maxSlides) {
     messages: [{
       role: 'user',
       content: `Du bist ein professioneller Präsentationsdesigner für "Klarblatt".
-Erstelle den Inhalt für eine Präsentation mit maximal ${maxSlides} Folien.
+Erstelle den Inhalt für eine Präsentation mit genau ${maxSlides} Folien.
+
+Wichtig: Das erste Element im Array ist die Titelfolie (nur "title", keine Bullets).
+Die restlichen ${maxSlides - 1} Elemente sind Inhaltsfolien mit Bullets.
 
 Kundenbriefing:
 ${briefing}
 
-Antworte als JSON-Array. Jede Folie hat:- "title": Folientitel
-- "bullets": Array mit 3-5 Stichpunkten
-- "notes": Sprechernotizen (1-2 Sätze)
+Antworte als JSON-Array. Jede Folie hat:
+- "title": Folientitel
+- "bullets": Array mit 3-5 Stichpunkten (bei der Titelfolie: leeres Array)
+- "notes": Sprechernotizen (1-2 Sätze, bei der Titelfolie optional)
 
 Antworte NUR mit dem JSON-Array, kein Markdown.`
     }],
   });
 
   try {
-    return safeParseJSON(response.content[0].text);
+    return safeParseJSON(getResponseText(response));
   } catch (err) {
     console.error('Claude Slide-JSON Parse-Fehler:', err.message);
-    console.error('Rohtext:', response.content[0].text.substring(0, 500));
+    console.error('Rohtext:', getResponseText(response).substring(0, 500));
     throw new Error('Claude-Antwort konnte nicht als JSON gelesen werden. Bitte erneut versuchen.');
   }
 }
@@ -430,10 +442,10 @@ Antworte als JSON:{"title":"Report-Titel","sections":[{"heading":"Titel","body":
   });
 
   try {
-    return safeParseJSON(response.content[0].text);
+    return safeParseJSON(getResponseText(response));
   } catch (err) {
     console.error('Claude Report-JSON Parse-Fehler:', err.message);
-    console.error('Rohtext:', response.content[0].text.substring(0, 500));
+    console.error('Rohtext:', getResponseText(response).substring(0, 500));
     throw new Error('Claude-Antwort konnte nicht als JSON gelesen werden. Bitte erneut versuchen.');
   }
 }
@@ -459,7 +471,7 @@ NUR JSON, kein Markdown.`
   });
 
   try {
-    return safeParseJSON(response.content[0].text);
+    return safeParseJSON(getResponseText(response));
   } catch (err) {
     console.error('Claude Kostenaufstellung Parse-Fehler:', err.message);
     throw new Error('Claude-Antwort konnte nicht als JSON gelesen werden.');
