@@ -536,6 +536,23 @@ async function buildDocx(report) {
   return out;
 }
 
+// ── Test order (no payment, owner-only, token protected) ────
+app.post('/admin/test-order', async (req, res) => {
+  const token = process.env.TEST_TOKEN;
+  if (!token || req.headers['x-test-token'] !== token) return res.status(403).send('forbidden');
+  const pkgKey = PACKAGES[req.query.package] ? req.query.package : 'auffrischen';
+  try {
+    await produceAndDeliver({
+      email: NOTIFY_EMAIL, name: 'Test', pkgKey, addons: [],
+      briefing: 'Testbestellung: Kurzpräsentation über die Vorteile digitaler Bauabrechnung für kleine Bauunternehmen.',
+    });
+    res.json({ ok: true, sentTo: NOTIFY_EMAIL, package: pkgKey });
+  } catch (err) {
+    console.error('Test order error:', err);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
 // ── Health ──────────────────────────────────────────────────
 app.get('/health', (req, res) => res.json({ status: 'ok', service: 'klarblatt', orders: orders.size }));
 
