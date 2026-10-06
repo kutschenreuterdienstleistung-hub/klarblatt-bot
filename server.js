@@ -19,7 +19,7 @@ const STRIPE_KEY = process.env.STRIPE_SECRET_KEY;
 const STRIPE_WH  = process.env.STRIPE_WEBHOOK_SECRET;
 const CLAUDE_KEY = process.env.ANTHROPIC_API_KEY;
 const RESEND_KEY = process.env.RESEND_API_KEY;
-const FROM_EMAIL = process.env.FROM_EMAIL || 'Klarblatt <onboarding@resend.dev>';
+const FROM_EMAIL = process.env.FROM_EMAIL || 'Kutschenreuter Dienstleistung <onboarding@resend.dev>';
 const NOTIFY_EMAIL = process.env.NOTIFY_EMAIL || 'kutschenreuter.dienstleistung@gmail.com';
 const PORT = process.env.PORT || 3000;
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
@@ -103,7 +103,7 @@ app.get('/', (req, res) => {
 <html lang="de">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Klarblatt — Bestellung</title>
+<title>Kutschenreuter Dienstleistung — Bestellung</title>
 <style>
   :root { --dark:#06393E; --teal:#028090; --mint:#02C39A; --bg:#F0F7F4; --text:#1A1A2E; }
   * { box-sizing:border-box; margin:0; padding:0; }
@@ -134,7 +134,7 @@ app.get('/', (req, res) => {
 </head>
 <body>
 <div class="header">
-  <h1>Klarblatt</h1>
+  <h1>Kutschenreuter Dienstleistung</h1>
   <p>Professionelle Präsentationen & Reports — KI-gestützt</p>
 </div>
 
@@ -182,7 +182,7 @@ app.get('/', (req, res) => {
   </form>
 
   <div class="footer">
-    Klarblatt · Kleinunternehmer §19 UStG — keine MwSt. · Alle Preise netto
+    Kutschenreuter Dienstleistung · Kleinunternehmer §19 UStG — keine MwSt. · Alle Preise netto
   </div>
 </div>
 
@@ -226,7 +226,7 @@ app.post('/checkout', async (req, res) => {
         price_data: {
           currency: 'eur',
           product_data: {
-            name: `Klarblatt ${pkg.name}`,
+            name: `Kutschenreuter Dienstleistung – ${pkg.name}`,
             description: addons.length ? `Add-Ons: ${addons.join(', ')}` : pkg.desc,
           },          unit_amount: totalCents,
         },
@@ -257,7 +257,7 @@ app.post('/checkout', async (req, res) => {
 
 // ── Danke-Seite ─────────────────────────────────────────────
 app.get('/danke', (req, res) => {
-  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Danke — Klarblatt</title>
+  res.send(`<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Danke — Kutschenreuter Dienstleistung</title>
 <style>body{font-family:system-ui;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#F0F7F4;margin:0}
 .box{text-align:center;background:#fff;padding:3rem;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,.08);max-width:480px}
 h1{color:#06393E;font-size:2rem}p{color:#555;margin-top:1rem;line-height:1.6}
@@ -305,7 +305,7 @@ app.post('/webhook/stripe', express.raw({ type: 'application/json' }), async (re
         try {
           await resend.emails.send({
             from: FROM_EMAIL, to: NOTIFY_EMAIL,
-            subject: `⚠️ Klarblatt Fehler — Bestellung von ${order.email}`,
+            subject: `⚠️ Fehler — Bestellung von ${order.email}`,
             text: `Fehler bei Produktion:\n${err.message}\n\nBriefing:\n${order.briefing}\n\nPaket: ${order.pkgKey}`,
           });
         } catch (mailErr) {
@@ -330,7 +330,7 @@ async function produceAndDeliver(order) {
   if (pkg.type === 'pptx' || pkg.type === 'both') {
     const slides = (await generateSlideContent(order.briefing, pkg.slides)).slice(0, pkg.slides);
     const filePath = await buildPptx(slides);
-    attachments.push({ filename: 'Klarblatt-Praesentation.pptx', path: filePath });
+    attachments.push({ filename: 'Kutschenreuter-Praesentation.pptx', path: filePath });
   }
 
   // Generate Report (combo or standalone docx)
@@ -339,8 +339,8 @@ async function produceAndDeliver(order) {
     const report = isKosten ? await generateKostenaufstellung(order.briefing)
                  :           await generateReportContent(order.briefing);
     const filePath = await buildDocx(report);
-    const fname = isKosten ? 'Klarblatt-Kostenaufstellung.docx'
-                :            'Klarblatt-Report.docx';
+    const fname = isKosten ? 'Kutschenreuter-Kostenaufstellung.docx'
+                :            'Kutschenreuter-Report.docx';
     attachments.push({ filename: fname, path: filePath });
   }
   // Send email via Resend
@@ -352,11 +352,11 @@ async function produceAndDeliver(order) {
   await resend.emails.send({
     from: FROM_EMAIL,
     to: order.email,
-    subject: `Dein Klarblatt ${pkg.name} ist fertig!`,
+    subject: `Dein ${pkg.name} von Kutschenreuter Dienstleistung ist fertig!`,
     html: `
       <div style="font-family:system-ui;max-width:520px;margin:0 auto">
         <div style="background:#06393E;color:#fff;padding:1.5rem;text-align:center;border-radius:12px 12px 0 0">
-          <h1 style="margin:0;font-size:1.5rem">Klarblatt</h1>
+          <h1 style="margin:0;font-size:1.5rem">Kutschenreuter Dienstleistung</h1>
         </div>
         <div style="background:#fff;padding:2rem;border:1px solid #eee;border-radius:0 0 12px 12px">
           <p>Hallo ${order.name || 'dort'},</p>
@@ -365,7 +365,7 @@ async function produceAndDeliver(order) {
           <p style="text-align:center">
             <a href="${BASE_URL}" style="background:#02C39A;color:#06393E;padding:.75rem 2rem;border-radius:8px;text-decoration:none;font-weight:700;display:inline-block">Neue Bestellung</a>
           </p>
-          <p style="color:#888;font-size:.85rem;margin-top:2rem">Klarblatt · Professionelle Präsentationen & Reports</p>
+          <p style="color:#888;font-size:.85rem;margin-top:2rem">Kutschenreuter Dienstleistung · Professionelle Präsentationen & Reports</p>
         </div>
       </div>
     `,
@@ -375,7 +375,7 @@ async function produceAndDeliver(order) {
   try {
     await resend.emails.send({
       from: FROM_EMAIL, to: NOTIFY_EMAIL,
-      subject: `🎉 Neue Klarblatt-Bestellung: ${pkg.name} von ${order.name || order.email}`,
+      subject: `🎉 Neue Bestellung: ${pkg.name} von ${order.name || order.email}`,
       text: `Neue Bestellung eingegangen!\n\nKunde: ${order.name || '(kein Name)'}\nE-Mail: ${order.email}\nPaket: ${pkg.name} (${pkg.priceLabel})\nAdd-Ons: ${order.addons.length ? order.addons.join(', ') : 'keine'}\n\nBriefing:\n${order.briefing}\n\nDeliverable wurde automatisch erstellt und zugestellt.`,
     });
   } catch (e) {
@@ -395,7 +395,7 @@ async function generateSlideContent(briefing, maxSlides) {
     max_tokens: 4000,
     messages: [{
       role: 'user',
-      content: `Du bist ein professioneller Präsentationsdesigner für "Klarblatt".
+      content: `Du bist ein professioneller Präsentationsdesigner für "Kutschenreuter Dienstleistung".
 Erstelle den Inhalt für eine Präsentation mit genau ${maxSlides} Folien.
 
 Wichtig: Das erste Element im Array ist die Titelfolie (nur "title", keine Bullets).
@@ -429,7 +429,7 @@ async function generateReportContent(briefing) {
     max_tokens: 6000,
     messages: [{
       role: 'user',
-      content: `Du bist ein professioneller Business-Autor für "Klarblatt".
+      content: `Du bist ein professioneller Business-Autor für "Kutschenreuter Dienstleistung".
 Erstelle einen ausführlichen Report.
 
 Kundenbriefing:
@@ -457,7 +457,7 @@ async function generateKostenaufstellung(briefing) {
     max_tokens: 6000,
     messages: [{
       role: 'user',
-      content: `Du bist ein erfahrener Baukostenanalyst für "Klarblatt".
+      content: `Du bist ein erfahrener Baukostenanalyst für "Kutschenreuter Dienstleistung".
 Erstelle eine detaillierte KI-Kostenaufstellung basierend auf dem Kundenbriefing.
 
 Kundenbriefing:
@@ -490,7 +490,7 @@ async function buildPptx(slides) {
     x: 0.8, y: 2.0, w: 11.7, h: 1.5,
     fontSize: 36, fontFace: 'Cambria', color: COLORS.WHITE, bold: true,
   });
-  titleSlide.addText('Erstellt von Klarblatt', {
+  titleSlide.addText('Erstellt von Kutschenreuter Dienstleistung', {
     x: 0.8, y: 4.0, w: 11.7, h: 0.6,
     fontSize: 14, fontFace: 'Calibri', color: COLORS.MINT,
   });
@@ -512,7 +512,7 @@ async function buildPptx(slides) {
   const endSlide = pptx.addSlide();
   endSlide.background = { color: COLORS.TEAL };
   endSlide.addText('Vielen Dank', { x: 0.8, y: 2.5, w: 11.7, h: 1.2, fontSize: 40, fontFace: 'Cambria', color: COLORS.WHITE, bold: true, align: 'center' });
-  endSlide.addText('klarblatt.de', { x: 0.8, y: 4.2, w: 11.7, h: 0.6, fontSize: 16, fontFace: 'Calibri', color: COLORS.WHITE, align: 'center' });
+  endSlide.addText('kutschenreuter-dienstleistung.de', { x: 0.8, y: 4.2, w: 11.7, h: 0.6, fontSize: 16, fontFace: 'Calibri', color: COLORS.WHITE, align: 'center' });
 
   const out = path.join('/tmp', `kb-${Date.now()}.pptx`);
   await pptx.writeFile({ fileName: out });
@@ -523,7 +523,7 @@ async function buildPptx(slides) {
 async function buildDocx(report) {
   const children = [
     new Paragraph({ text: report.title, heading: HeadingLevel.TITLE, spacing: { after: 400 } }),
-    new Paragraph({ children: [new TextRun({ text: 'Erstellt von Klarblatt', italics: true, color: COLORS.TEAL, size: 24 })], spacing: { after: 600 } }),  ];
+    new Paragraph({ children: [new TextRun({ text: 'Erstellt von Kutschenreuter Dienstleistung', italics: true, color: COLORS.TEAL, size: 24 })], spacing: { after: 600 } }),  ];
   for (const sec of report.sections) {
     children.push(new Paragraph({ text: sec.heading, heading: HeadingLevel.HEADING_1, spacing: { before: 400, after: 200 } }));
     for (const p of sec.body.split('\n').filter(x => x.trim())) {
